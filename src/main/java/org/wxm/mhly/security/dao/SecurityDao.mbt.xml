@@ -1,0 +1,60 @@
+<?xml version = "1.0" encoding = "UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 用户权限SQL配置 -->
+<mapper namespace="org.wxm.mhly.security.dao.SecurityDao">
+
+  <!-- 根据用户名查找用户 -->
+  <select id="findUserByUsername" parameterType="java.lang.String" resultType="UserDetail">
+    <![CDATA[
+    SELECT SU.id,
+           SU.username,
+           SU.password,
+           SU.cnName,
+           SU.enName,
+           SU.cellphone,
+           SU.userTel,
+           SU.userEmail,
+           SU.userAddr,
+           SU.userGender,
+           SU.userBirthday,
+           SU.userPicUrl,
+           SU.isSysAdmin,
+           SU.isLocked,
+           SU.accountExpiredDate,
+           SU.credentialsExpiredDate,
+           SU.userOrder,
+           SU.remark,
+           SU.createdBy,
+           SU.createdAt,
+           SU.reviserId,
+           SU.reviseDate,
+           SU.isValid
+      FROM WXM_MHLY_SYS_USER SU
+     WHERE SU.isValid = '1'
+       AND SU.username = #{username}
+    ]]>
+  </select>
+
+  <!-- 根据用户ID查找菜单 -->
+  <select id="findMenuByUserId" parameterType="java.lang.String" resultType="VSysMenu">
+    <![CDATA[
+    SELECT
+        SM.id,
+        SM.menuName,
+        SM.parentId,
+        SM.menuUrl,
+        SM.picUrl,
+        SM.menuCss,
+        SM.menuIconCss,
+        SM.menuOrder,
+        SM.remark
+    FROM WXM_MHLY_SYS_MENU SM,
+         WXM_MHLY_SYS_ROLE_MENU_OPERATOR SRMO,
+         WXM_MHLY_SYS_USER_ROLE SUR
+    WHERE SM.isValid = '1'
+      AND SM.id = SRMO.menuId
+      AND SRMO.roleId = SUR.roleId
+      AND SUR.userId = #{userId}
+    ]]>
+  </select>
+</mapper>

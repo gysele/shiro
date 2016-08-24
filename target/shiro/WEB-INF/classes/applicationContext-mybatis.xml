@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+  xmlns:cache="http://www.springframework.org/schema/cache"
+  xsi:schemaLocation="http://www.springframework.org/schema/beans
+                      http://www.springframework.org/schema/beans/spring-beans.xsd
+                      http://www.springframework.org/schema/aop
+                      http://www.springframework.org/schema/aop/spring-aop.xsd
+                      http://www.springframework.org/schema/tx
+                      http://www.springframework.org/schema/tx/spring-tx.xsd 
+                      http://www.springframework.org/schema/cache
+                      http://www.springframework.org/schema/cache/spring-cache.xsd"
+  default-lazy-init="true">
+
+  <bean id="propertyConfigurer" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+    <property name="locations">
+      <list>
+        <value>classpath:config/jdbc.properties</value>
+      </list>
+    </property>
+  </bean>
+
+  <!-- dataSource 配置 -->
+  <bean id="dataSource" class="${jdbc.driver}" init-method="init" destroy-method="close">
+    <!-- 基本属性 url、user、password -->
+    <property name="url" value="${jdbc.url}" />
+    <property name="username" value="${jdbc.username}" />
+    <property name="password" value="${jdbc.password}" />
+
+    <!-- 初始化连接大小 -->
+    <property name="initialSize" value="${ds.initialSize}" />
+    <!-- 连接池最大空闲 -->
+    <property name="minIdle" value="${ds.minIdle}" />
+    <!-- 连接池最大使用连接数量 -->
+    <property name="maxActive" value="${ds.maxActive}" />
+    <!-- 配置获取连接等待超时的时间 -->
+    <property name="maxWait" value="${ds.maxWait}" />
+    <!-- 配置间隔多久才进行一次检测，检测需要关闭的空闲连接，单位是毫秒 -->
+    <property name="timeBetweenEvictionRunsMillis" value="${ds.timeBetweenEvictionRunsMillis}" />
+    <!-- 配置一个连接在池中最小生存的时间，单位是毫秒 -->
+    <property name="minEvictableIdleTimeMillis" value="${ds.minEvictableIdleTimeMillis}" />
+    <!-- 验证数据库连接的有效性 -->
+    <property name="validationQuery" value="${ds.validationQuery}" />
+    <!-- GenericObjectPool中针对pool管理，起了一个Evict的TimerTask定时线程进行控制(可通过设置参数timeBetweenEvictionRunsMillis>0),定时对线程池中的链接进行validateObject校验，对无效的链接进行关闭后，会调用ensureMinIdle，适当建立链接保证最小的minIdle连接数 -->
+    <property name="testWhileIdle" value="true" />
+    <!-- 在进行borrowObject进行处理时，对拿到的connection进行validateObject校验 -->
+    <property name="testOnBorrow" value="false" />
+    <!-- 在进行returnObject对返回的connection进行validateObject校验，个人觉得对数据库连接池的管理意义不大 -->
+    <property name="testOnReturn" value="false" />
+    <!-- 打开removeAbandoned功能 -->
+    <property name="removeAbandoned" value="true" />
+    <!-- 1800秒，也就是30分钟 -->
+    <property name="removeAbandonedTimeout" value="1800" />
+    <!-- 关闭abanded连接时输出错误日志 -->
+    <property name="logAbandoned" value="true" />
+    <!-- 打开PSCache，并且指定每个连接上PSCache的大小 -->
+    <property name="poolPreparedStatements" value="false" />
+    <property name="maxPoolPreparedStatementPerConnectionSize" value="20" />
+    <!-- 配置监控统计拦截的filters -->
+    <property name="filters" value="stat" />
+  </bean>
+
+  <!-- mybatis文件配置，扫描所有mapper文件 -->
+  <bean id="sqlSessionFactory" class="org.wxm.core.mybatis.PackagesSqlSessionFactoryBean">
+    <property name="dataSource" ref="dataSource" />
+    <!-- 自动取对应包中不包括包名的简单类名作为包括包名的别名，多个包名以“,”分隔 ，注意不要有空格 -->
+    <property name="typeAliasesPackage" value="classpath*:org/**/bean,classpath*:org/**/view" />
+    <property name="mapperLocations" value="classpath*:org/**/*.mbt.xml" />
+    <property name="configLocation">
+      <value>classpath:mybatis-config.xml</value>
+    </property>
+  </bean>
+
+  <!-- spring与mybatis整合配置，扫描所有dao -->
+  <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+    <property name="basePackage" value="org.wxm.mhly.**.dao" />
+  </bean>
+
+  <!-- 对dataSource 数据源进行事务管理 -->
+  <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+    <property name="dataSource" ref="dataSource" />
+  </bean>
+
+  <!-- 拦截器方式配置事物 -->
+  <tx:advice id="txAdvice" transaction-manager="transactionManager">
+    <tx:attributes>
+      <!-- 对insert,update,delete 开头的方法进行事务管理,只要有异常就回滚 -->
+      <tx:method name="save*" propagation="REQUIRED" rollback-for="java.lang.Throwable" />
+      <tx:method name="modify*" propagation="REQUIRED" rollback-for="java.lang.Throwable" />
+      <tx:method name="remove*" propagation="REQUIRED" rollback-for="java.lang.Throwable" />
+      <!-- select,count开头的方法,开启只读,提高数据库访问性能 -->
+      <tx:method name="find*" read-only="true" />
+      <tx:method name="count*" read-only="true" />
+      <!-- 对其他方法 使用默认的事务管理 -->
+      <tx:method name="*" />
+    </tx:attributes>
+  </tx:advice>
+
+  <!-- 事务 aop 配置 -->
+  <aop:config>
+    <aop:pointcut id="serviceMethods" expression="execution(* org.wxm.mhly.**.service..*(..))" />
+    <aop:advisor advice-ref="txAdvice" pointcut-ref="serviceMethods" />
+  </aop:config>
+</beans>
